@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="map_api_key" translatable="false">
+        AIzaSyBsEn2mO9jyDG63ppkZVnaOuRWY-iSJlPQ
+    </string>
+    <string name="Direction_map_api_key" translatable="false">
+        AIzaSyC1rU8F0fBtYFA3Vsj28v3w_025sLGHX0I
     </string>
 </resources>

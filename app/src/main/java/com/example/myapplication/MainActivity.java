@@ -1,37 +1,59 @@
+
 package com.example.myapplication;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Looper;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 
-public class MainActivity extends FragmentActivity implements OnMapReadyCallback, TaskLoadedCallback,GoogleMap.OnMapClickListener, LocationListener {
+import java.util.List;
+
+public class MainActivity extends FragmentActivity implements OnMapReadyCallback, TaskLoadedCallback,GoogleMap.OnMapClickListener {
 
     GoogleMap gmap;
-    int count = 0;
-    LocationManager locationManager;
+    Marker marker;
     Double lat, lng;
+    int count = 0;
     private Polyline currentPolyline;
     MarkerOptions place1, place2;
+    FusedLocationProviderClient fusedLocationProviderClient;
+    BitmapDescriptor bitmapDescriptor1, bitmapDescriptor2;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -43,26 +65,84 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
+        fusedLocationProviderClient= LocationServices.getFusedLocationProviderClient(this);
+        bitmapDescriptor1=bitmapDescriptorFromVector(MainActivity.this, R.drawable.ic_directions_bus_black_24dp);
+        bitmapDescriptor2=bitmapDescriptorFromVector(MainActivity.this, R.drawable.ic_directions_bus_magenta_24dp);
     }
 
+    private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId) {
+        Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
+        vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
+        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        vectorDrawable.draw(canvas);
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
+    }
+    LocationCallback locationCallback=new LocationCallback(){
+        @Override
+        public void onLocationResult(LocationResult locationResult) {
+            if(place1!=null&&place2!=null){
+                gmap.addPolyline(new PolylineOptions().add(place1.getPosition()).add(place2.getPosition())
+                        .width(18).color(Color.MAGENTA));
+                if(marker!=null)
+                    marker.remove();
+                marker=gmap.addMarker(new MarkerOptions()
+                        .position(place1.getPosition())
+                        .icon(bitmapDescriptor1)
+                        .title("Current Position"));
+                marker.showInfoWindow();
+            }
+            List<Location> locationList = locationResult.getLocations();
+            if (locationList.size() > 0) {
+                Location location = locationList.get(locationList.size() - 1);
+                lat=location.getLatitude();
+                lng=location.getLongitude();
+                if(place1==null) {
+                    place1 = new MarkerOptions().position(new LatLng(lat, lng));
+                    gmap.addMarker(new MarkerOptions()
+                            .position(place1.getPosition())
+                            .icon(bitmapDescriptor2)
+                            .title("Started From")).showInfoWindow();
+                }
+                else if(place2==null) {
+                    place2 = new MarkerOptions().position(new LatLng(lat, lng));
+                }
+                else{
+                    place1=place2;
+                    place2=new MarkerOptions().position(new LatLng(lat, lng));
+                }
+                if(gmap.getCameraPosition().zoom>15);
+                else
+                    gmap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lng),15));
+            }
+    }
+    };
+    @SuppressLint("MissingPermission")
     @Override
     public void onMapReady(GoogleMap googleMap) {
         gmap=googleMap;
         gmap.setOnMapClickListener(this);
+        LocationRequest mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(12000); // two minute interval
+        mLocationRequest.setFastestInterval(12000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        fusedLocationProviderClient.requestLocationUpdates(mLocationRequest, locationCallback, Looper.myLooper());
     }
 
     @Override
     public void onMapClick(LatLng latLng) {
-        if(count==2){
+        gmap.addMarker(new MarkerOptions()
+                .position(latLng)
+                .icon(bitmapDescriptorFromVector(MainActivity.this, R.drawable.ic_person_pin_black_24dp))
+                .title("You are Here")).showInfoWindow();
+        /*if(count==2){
             Toast.makeText(getApplicationContext(), "No more", Toast.LENGTH_SHORT).show();
-           // new FetchURL(MainActivity.this).execute(getUrl(place1.getPosition(), place2.getPosition(), "driving"), "driving");
+             new FetchURL(MainActivity.this).execute(getUrl(place1.getPosition(), place2.getPosition(), "driving"), "driving");
             if (currentPolyline != null)
                 currentPolyline.remove();
 
-           currentPolyline=gmap.addPolyline(new PolylineOptions().add(place1.getPosition()).add(place2.getPosition())
-           .width(5).color(R.color.colorPrimaryDark));
+            currentPolyline=gmap.addPolyline(new PolylineOptions().add(place1.getPosition()).add(place2.getPosition())
+                    .width(5).color(Color.BLUE));
             return;
         }
         count++;
@@ -73,34 +153,10 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         else{
             place2=new MarkerOptions().position(latLng);
             gmap.addMarker(place2);
-        }
+        }*/
     }
 
-    @Override
-    public void onLocationChanged(Location location) {
-        lat=location.getLatitude();
-        lng=location.getLongitude();
-        gmap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lng),13));
-        if(location!=null){
-            locationManager.removeUpdates(this);
-        }
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-
-    }
-    private String getUrl(LatLng origin, LatLng dest, String directionMode) {
+       private String getUrl(LatLng origin, LatLng dest, String directionMode) {
         // Origin of route
         String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
         // Destination of route
@@ -112,7 +168,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         // Output format
         String output = "json";
         // Building the url to the web service
-        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters + "&key=" + getString(R.string.map_api_key);
+        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters + "&key=" + getString(R.string.Direction_map_api_key);
         return url;
     }
 
@@ -121,5 +177,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         if (currentPolyline != null)
             currentPolyline.remove();
         currentPolyline = gmap.addPolyline((PolylineOptions) values[0]);
+        currentPolyline.setColor(R.color.colorPrimaryDark);
     }
 }
+
