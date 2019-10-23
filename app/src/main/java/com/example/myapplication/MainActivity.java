@@ -123,6 +123,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         gmap=googleMap;
         gmap.setOnMapClickListener(this);
         LocationRequest mLocationRequest = new LocationRequest();
+        //xsh
         mLocationRequest.setInterval(12000); // two minute interval
         mLocationRequest.setFastestInterval(12000);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
