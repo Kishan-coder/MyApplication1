@@ -123,7 +123,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         gmap=googleMap;
         gmap.setOnMapClickListener(this);
         LocationRequest mLocationRequest = new LocationRequest();
-        //xsh
+        //xs
         mLocationRequest.setInterval(12000); // two minute interval
         mLocationRequest.setFastestInterval(12000);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
@@ -156,7 +156,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
             gmap.addMarker(place2);
         }*/
     }
-
+//hua kya?
        private String getUrl(LatLng origin, LatLng dest, String directionMode) {
         // Origin of route
         String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
@@ -172,7 +172,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters + "&key=" + getString(R.string.Direction_map_api_key);
         return url;
     }
-
     @Override
     public void onTaskDone(Object... values) {
         if (currentPolyline != null)
