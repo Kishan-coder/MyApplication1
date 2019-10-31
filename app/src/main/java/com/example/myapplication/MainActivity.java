@@ -3,7 +3,9 @@ package com.example.myapplication;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.ActivityManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -14,6 +16,8 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Looper;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
@@ -41,7 +45,14 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
+import java.util.Iterator;
 import java.util.List;
 
 public class MainActivity extends FragmentActivity implements OnMapReadyCallback, TaskLoadedCallback,GoogleMap.OnMapClickListener {
@@ -54,10 +65,16 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     MarkerOptions place1, place2;
     FusedLocationProviderClient fusedLocationProviderClient;
     BitmapDescriptor bitmapDescriptor1, bitmapDescriptor2;
+    DatabaseReference check;
+    Boolean startService=true;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        DatabaseReference mDatabaseReference=FirebaseDatabase.getInstance().getReference().child("Drivers");
+        check=mDatabaseReference.push();
+
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
@@ -78,6 +95,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         vectorDrawable.draw(canvas);
         return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
+
     LocationCallback locationCallback=new LocationCallback(){
         @Override
         public void onLocationResult(LocationResult locationResult) {
@@ -97,6 +115,14 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 Location location = locationList.get(locationList.size() - 1);
                 lat=location.getLatitude();
                 lng=location.getLongitude();
+                check.child("lat").setValue(lat);
+                check.child("long").setValue(lng);
+                if(startService){
+                    startService=false;
+                    Intent intent = new Intent(getApplicationContext(), myService.class);
+                    intent.putExtra("key", check.getKey());
+                    startService(intent);
+                }
                 if(place1==null) {
                     place1 = new MarkerOptions().position(new LatLng(lat, lng));
                     gmap.addMarker(new MarkerOptions()
@@ -124,19 +150,18 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         gmap.setOnMapClickListener(this);
         LocationRequest mLocationRequest = new LocationRequest();
         //xs
-        mLocationRequest.setInterval(12000); // two minute interval
-        mLocationRequest.setFastestInterval(12000);
+        mLocationRequest.setInterval(1200); // two minute interval
+        mLocationRequest.setFastestInterval(1200);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
         fusedLocationProviderClient.requestLocationUpdates(mLocationRequest, locationCallback, Looper.myLooper());
     }
-
     @Override
     public void onMapClick(LatLng latLng) {
-        gmap.addMarker(new MarkerOptions()
+        /*gmap.addMarker(new MarkerOptions()
                 .position(latLng)
                 .icon(bitmapDescriptorFromVector(MainActivity.this, R.drawable.ic_person_pin_black_24dp))
                 .title("You are Here")).showInfoWindow();
-        /*if(count==2){
+        if(count==2){
             Toast.makeText(getApplicationContext(), "No more", Toast.LENGTH_SHORT).show();
              new FetchURL(MainActivity.this).execute(getUrl(place1.getPosition(), place2.getPosition(), "driving"), "driving");
             if (currentPolyline != null)
